@@ -1,14 +1,12 @@
-const sns = require('ebased/service/downstream/sns');
+const sqs = require('ebased/service/downstream/sqs');
 const dynamo = require('ebased/service/storage/dynamo');
 const config = require('ebased/util/config');
 
-const MESSAGE_TOPIC_URL = config.get('MESSAGE_TOPIC_URL');
+const MESSAGE_QUEUE_URL = config.get('MESSAGE_QUEUE_URL');
 const DYNAMODB_TABLE = config.get('DYNAMODB_TABLE');
 
 module.exports = {
-    async processAsync(eventPayload, eventMeta) {
-        const startTime = Date.now();
-        
+    async saveOriginalEvent(eventPayload, eventMeta) {
         // Guardar evento original en DynamoDB
         await this.saveToDynamoDB({
             ...eventPayload,
@@ -16,33 +14,25 @@ module.exports = {
             received_at: new Date().toISOString(),
             lambda_name: eventMeta.source
         });
+    },
 
-        // Enviar a SNS para procesamiento asíncrono
-        await sns.publish({
-            TopicArn: MESSAGE_TOPIC_URL,
-            Message: JSON.stringify({
+    async processAsync(eventPayload, eventMeta) {
+        // Enviar a SQS para procesamiento asíncrono
+        const sqsSendParams = {
+            MessageBody: {
                 Payload: eventPayload,
                 Meta: eventMeta
-            })
-        });
+            },
+            QueueUrl: MESSAGE_QUEUE_URL
+        };
+        await sqs.send(sqsSendParams);
 
         return {
-            processingTime: Date.now() - startTime,
             flow: 'async'
         };
     },
 
     async processSync(eventPayload, eventMeta) {
-        const startTime = Date.now();
-        
-        // Guardar evento original
-        await this.saveToDynamoDB({
-            ...eventPayload,
-            event_type: 'original',
-            received_at: new Date().toISOString(),
-            lambda_name: eventMeta.source
-        });
-
         // Procesar directamente
         const processedEvent = await this.processEvent(eventPayload);
         
@@ -55,39 +45,7 @@ module.exports = {
         });
 
         return {
-            processingTime: Date.now() - startTime,
             flow: 'sync'
-        };
-    },
-
-    async processWithExternalCall(eventPayload, eventMeta) {
-        const startTime = Date.now();
-        
-        // Guardar evento original
-        await this.saveToDynamoDB({
-            ...eventPayload,
-            event_type: 'original',
-            received_at: new Date().toISOString(),
-            lambda_name: eventMeta.source
-        });
-
-        // Simular llamada externa (2 segundos)
-        await this.simulateExternalCall();
-        
-        // Procesar evento
-        const processedEvent = await this.processEvent(eventPayload);
-        
-        // Guardar evento procesado
-        await this.saveToDynamoDB({
-            ...processedEvent,
-            event_type: 'processed',
-            processed_at: new Date().toISOString(),
-            lambda_name: eventMeta.source
-        });
-
-        return {
-            processingTime: Date.now() - startTime,
-            flow: 'sync_with_external'
         };
     },
 
@@ -113,13 +71,5 @@ module.exports = {
         };
         
         await dynamo.put(dynamoParams);
-    },
-
-    async simulateExternalCall() {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve();
-            }, 2000);
-        });
     }
 }; 

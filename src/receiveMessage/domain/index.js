@@ -1,28 +1,45 @@
 const { InputValidation } = require('ebased/schema/inputValidation');
-const { Event } = require('ebased/schema/createEvent');
+const { delay } = require('./utils');
 const receiveMessageService = require('../service');
 
 module.exports = async (eventPayload, eventMeta) => {
+    const startTime = Date.now();
+    
+    // Validar con ebased InputValidation
+    new PaymentEventValidation(eventPayload, eventMeta).get();
     const { event_id, channel, amount, currency, customer_id, timestamp } = eventPayload;
 
-    // Validar el evento de entrada
-    new PaymentEventValidation(eventPayload, eventMeta).get();
+    // Guardar evento original primero
+    await receiveMessageService.saveOriginalEvent(eventPayload, eventMeta);
 
-    // Procesar según el canal
     let result;
+    let flowType = 'sync';
+
+    // Aplicar lógica de negocio según el canal
     if (channel === 'qr-pct' && amount > 1000 && currency === 'ARS') {
         // Flujo asíncrono - enviar a SQS
+        flowType = 'async';
         result = await receiveMessageService.processAsync(eventPayload, eventMeta);
     } else if (channel === 'qr-tctd') {
         // Procesamiento directo
         result = await receiveMessageService.processSync(eventPayload, eventMeta);
     } else if (channel === 'link') {
-        // Simular llamada externa
-        result = await receiveMessageService.processWithExternalCall(eventPayload, eventMeta);
+        // Simular llamada externa (2 segundos)
+        await delay(2000);
+        result = await receiveMessageService.processSync(eventPayload, eventMeta);
     } else {
         // Procesamiento por defecto
         result = await receiveMessageService.processSync(eventPayload, eventMeta);
     }
+
+    // Log estructurado al final
+    const processingTimeMs = Date.now() - startTime;
+    console.log(JSON.stringify({
+        lambda: 'ReceiveMessage',
+        eventId: event_id,
+        flowType: flowType,
+        processingTimeMs: processingTimeMs
+    }));
 
     return {
         body: {
@@ -33,9 +50,9 @@ module.exports = async (eventPayload, eventMeta) => {
             customer_id,
             timestamp,
             processed_at: new Date().toISOString(),
-            flow_type: channel === 'qr-pct' && amount > 1000 && currency === 'ARS' ? 'async' : 'sync',
+            flow_type: flowType,
             lambda_name: eventMeta.source,
-            processing_time_ms: result.processingTime,
+            processing_time_ms: processingTimeMs,
             status: 'processed'
         }
     };

@@ -1,0 +1,6 @@
+Resources:
+  PaymentEventsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ${self:service}-${self:provider.stage}-PaymentEventsTopic
+      DisplayName: Payment Events SNS Topic 
