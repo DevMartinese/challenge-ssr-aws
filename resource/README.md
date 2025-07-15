@@ -41,11 +41,3 @@ resources:
   - ${file(resource/sqs.yml)}
   - ${file(resource/dynamodb.yml)}
 ```
-
-## ✅ Ventajas
-
-- **Organización**: Cada tipo de recurso en su propio archivo
-- **Mantenimiento**: Más fácil de mantener y actualizar
-- **Reutilización**: Archivos pueden ser reutilizados en otros proyectos
-- **Claridad**: Estructura más clara y legible
-- **Versionado**: Mejor control de cambios por tipo de recurso 
