@@ -7,34 +7,28 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: develop
-  environment:
-    MESSAGE_QUEUE_URL: !Ref PaymentEventsQueue
-    DYNAMODB_TABLE: !Ref PaymentEventsTable
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - sqs:SendMessage
-            - sqs:ReceiveMessage
-            - sqs:DeleteMessage
-            - sqs:GetQueueAttributes
-          Resource: !GetAtt PaymentEventsQueue.Arn
-        - Effect: Allow
-          Action:
-            - dynamodb:PutItem
-            - dynamodb:GetItem
-            - dynamodb:Query
-            - dynamodb:Scan
-          Resource: !GetAtt PaymentEventsTable.Arn
-        - Effect: Allow
-          Action:
-            - sns:Publish
-          Resource: !Ref PaymentEventsTopic
 
 functions:
-  receiveMessage:
+  ReceiveMessage:
     handler: src/receiveMessage/handler/index.handler
+    environment:
+      MESSAGE_TOPIC_URL: !Ref PaymentEventsTopic
+      DYNAMODB_TABLE: !Ref PaymentEventsTable
+    iamRoleStatementsName: ${self:service}-${self:provider.stage}-ReceiveMessageRole
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref PaymentEventsTopic
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+          - dynamodb:GetItem
+          - dynamodb:Query
+          - dynamodb:Scan
+        Resource:
+          - !GetAtt PaymentEventsTable.Arn
     events:
       - sns:
           arn: !Ref PaymentEventsTopic
@@ -42,8 +36,29 @@ functions:
     timeout: 30
     memorySize: 256
 
-  publishMessage:
+  PublishMessage:
     handler: src/publishMessage/handler/index.handler
+    environment:
+      MESSAGE_QUEUE_URL: !Ref PaymentEventsQueue
+      DYNAMODB_TABLE: !Ref PaymentEventsTable
+    iamRoleStatementsName: ${self:service}-${self:provider.stage}-PublishMessageRole
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sqs:SendMessage
+          - sqs:ReceiveMessage
+          - sqs:DeleteMessage
+          - sqs:GetQueueAttributes
+        Resource:
+          - !GetAtt PaymentEventsQueue.Arn
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+          - dynamodb:GetItem
+          - dynamodb:Query
+          - dynamodb:Scan
+        Resource:
+          - !GetAtt PaymentEventsTable.Arn
     events:
       - sqs:
           arn: !GetAtt PaymentEventsQueue.Arn
@@ -56,13 +71,16 @@ resources:
     PaymentEventsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: payment-events-topic-${self:provider.stage}
-        DisplayName: Payment Events Topic
+        TopicName: ${self:service}-${self:provider.stage}-PaymentEventsTopic
+        DisplayName: Payment Events SNS Topic
+        Subscription:
+          - Endpoint: devmartinese@gmail.com
+            Protocol: email
 
     PaymentEventsQueue:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: payment-events-queue-${self:provider.stage}
+        QueueName: ${self:service}-${self:provider.stage}-PaymentEventsQueue
         VisibilityTimeoutSeconds: 30
         MessageRetentionPeriod: 1209600
         RedrivePolicy:
@@ -72,13 +90,13 @@ resources:
     PaymentEventsDLQ:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: payment-events-dlq-${self:provider.stage}
+        QueueName: ${self:service}-${self:provider.stage}-PaymentEventsDLQ
         MessageRetentionPeriod: 1209600
 
     PaymentEventsTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: payment-events-${self:provider.stage}
+        TableName: ${self:service}-${self:provider.stage}-PaymentEvents
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
           - AttributeName: id

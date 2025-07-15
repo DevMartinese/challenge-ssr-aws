@@ -10,8 +10,8 @@
     "deploy": "serverless deploy",
     "deploy:prod": "serverless deploy --stage production",
     "remove": "serverless remove",
-    "logs": "serverless logs -f receiveMessage -t",
-    "logs:publish": "serverless logs -f publishMessage -t",
+    "logs": "serverless logs -f ReceiveMessage -t",
+    "logs:publish": "serverless logs -f PublishMessage -t",
     "prepare": "husky"
   },
   "author": "QR Code",
