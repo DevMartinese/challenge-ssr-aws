@@ -12,10 +12,16 @@ functions:
   ReceiveMessage:
     handler: src/receiveMessage/handler/index.handler
     environment:
+      MESSAGE_TOPIC_URL: !Ref PaymentEventsTopic
       MESSAGE_QUEUE_URL: !Ref PaymentEventsQueue
       DYNAMODB_TABLE: !Ref PaymentEventsTable
     iamRoleStatementsName: ${self:service}-${self:provider.stage}-ReceiveMessageRole
     iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref PaymentEventsTopic
       - Effect: Allow
         Action:
           - sqs:SendMessage
@@ -39,6 +45,7 @@ functions:
   PublishMessage:
     handler: src/publishMessage/handler/index.handler
     environment:
+      MESSAGE_TOPIC_URL: !Ref PaymentEventsTopic
       MESSAGE_QUEUE_URL: !Ref PaymentEventsQueue
       DYNAMODB_TABLE: !Ref PaymentEventsTable
     iamRoleStatementsName: ${self:service}-${self:provider.stage}-PublishMessageRole
@@ -51,6 +58,11 @@ functions:
           - sqs:GetQueueAttributes
         Resource:
           - !GetAtt PaymentEventsQueue.Arn
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref PaymentEventsTopic
       - Effect: Allow
         Action:
           - dynamodb:PutItem

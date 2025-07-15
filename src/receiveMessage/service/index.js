@@ -1,8 +1,8 @@
-const sqs = require('ebased/service/downstream/sqs');
+const sns = require('ebased/service/downstream/sns');
 const dynamo = require('ebased/service/storage/dynamo');
 const config = require('ebased/util/config');
 
-const MESSAGE_QUEUE_URL = config.get('MESSAGE_QUEUE_URL');
+const MESSAGE_TOPIC_URL = config.get('MESSAGE_TOPIC_URL');
 const DYNAMODB_TABLE = config.get('DYNAMODB_TABLE');
 
 module.exports = {
@@ -17,16 +17,14 @@ module.exports = {
     },
 
     async processAsync(eventPayload, eventMeta) {
-        // Enviar a SQS para procesamiento asíncrono
-        const sqsSendParams = {
-            MessageBody: {
+        // Publicar a SNS para procesamiento asíncrono usando ebased
+        await sns.publish({
+            TopicArn: MESSAGE_TOPIC_URL,
+            Message: JSON.stringify({
                 Payload: eventPayload,
                 Meta: eventMeta
-            },
-            QueueUrl: MESSAGE_QUEUE_URL
-        };
-        await sqs.send(sqsSendParams);
-
+            })
+        });
         return {
             flow: 'async'
         };
@@ -35,7 +33,6 @@ module.exports = {
     async processSync(eventPayload, eventMeta) {
         // Procesar directamente
         const processedEvent = await this.processEvent(eventPayload);
-        
         // Guardar evento procesado
         await this.saveToDynamoDB({
             ...processedEvent,
@@ -43,7 +40,6 @@ module.exports = {
             processed_at: new Date().toISOString(),
             lambda_name: eventMeta.source
         });
-
         return {
             flow: 'sync'
         };
@@ -69,7 +65,6 @@ module.exports = {
                 timestamp: new Date().toISOString()
             }
         };
-        
         await dynamo.put(dynamoParams);
     }
 }; 
