@@ -2,22 +2,9 @@ const { InputValidation } = require('ebased/schema/inputValidation');
 const publishMessageService = require('../service');
 
 module.exports = async (commandPayload, commandMeta) => {
-    const { event_id, channel, amount, currency, customer_id, timestamp } = commandPayload;
-
     new PaymentEventValidation(commandPayload, commandMeta).get();
-    await publishMessageService(commandPayload);
-    return {
-        body: {
-            event_id,
-            channel,
-            amount,
-            currency,
-            customer_id,
-            timestamp,
-            queued_at: new Date().toISOString(),
-            status: 'queued_for_processing'
-        }
-    };
+    await publishMessageService(commandPayload, commandMeta);
+    return { body: commandPayload };
 };
 
 class PaymentEventValidation extends InputValidation {
