@@ -1,0 +1,97 @@
+service: payment-events-processor
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: develop
+  environment:
+    MESSAGE_QUEUE_URL: !Ref PaymentEventsQueue
+    DYNAMODB_TABLE: !Ref PaymentEventsTable
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource: !GetAtt PaymentEventsQueue.Arn
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource: !GetAtt PaymentEventsTable.Arn
+        - Effect: Allow
+          Action:
+            - sns:Publish
+          Resource: !Ref PaymentEventsTopic
+
+functions:
+  receiveMessage:
+    handler: src/receiveMessage/handler/index.handler
+    events:
+      - sns:
+          arn: !Ref PaymentEventsTopic
+          topicName: payment-events-topic
+    timeout: 30
+    memorySize: 256
+
+  publishMessage:
+    handler: src/publishMessage/handler/index.handler
+    events:
+      - sqs:
+          arn: !GetAtt PaymentEventsQueue.Arn
+          batchSize: 1
+    timeout: 30
+    memorySize: 256
+
+resources:
+  Resources:
+    PaymentEventsTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: payment-events-topic-${self:provider.stage}
+        DisplayName: Payment Events Topic
+
+    PaymentEventsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: payment-events-queue-${self:provider.stage}
+        VisibilityTimeoutSeconds: 30
+        MessageRetentionPeriod: 1209600
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt PaymentEventsDLQ.Arn
+          maxReceiveCount: 3
+
+    PaymentEventsDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: payment-events-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600
+
+    PaymentEventsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: payment-events-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: timestamp-index
+            KeySchema:
+              - AttributeName: timestamp
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL

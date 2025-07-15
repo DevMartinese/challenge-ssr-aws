@@ -1,0 +1,8 @@
+{
+  "event_id": "evt_123456789",
+  "channel": "qr-pct",
+  "amount": 1500,
+  "currency": "ARS",
+  "customer_id": "cust_987654321",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+} 

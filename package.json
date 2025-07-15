@@ -1,0 +1,28 @@
+{
+  "name": "qrcode-challenge",
+  "version": "1.0.0",
+  "description": "QR Code Challenge",
+  "main": "index.js",
+  "scripts": {
+    "coverage": "jest --coverage",
+    "test": "jest --verbose",
+    "test:local": "node scripts/invoke-local.js",
+    "deploy": "serverless deploy",
+    "deploy:prod": "serverless deploy --stage production",
+    "remove": "serverless remove",
+    "logs": "serverless logs -f receiveMessage -t",
+    "logs:publish": "serverless logs -f publishMessage -t",
+    "prepare": "husky"
+  },
+  "author": "QR Code",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.1692.0",
+    "ebased": "^1.6.2"
+  },
+  "devDependencies": {
+    "eslint": "^9.6.0",
+    "husky": "^9.1.7",
+    "jest": "29.7.0"
+  }
+}
