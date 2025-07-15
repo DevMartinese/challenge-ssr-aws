@@ -39,9 +39,10 @@ Una Lambda suscripta a un SNS Topic recibe eventos con la siguiente estructura:
 
 ## 🛠️ Requisitos Técnicos
 
-- Lenguaje: **Node.js + TypeScript**
+- Lenguaje: **Node.js**
 - Infraestructura: **AWS Lambda**, **SNS**, **SQS**, **DynamoDB**
 - Framework: **Serverless Framework**
+- SDK: **AWS SDK v2**
 - Guardar eventos originales y procesados en **DynamoDB**
 - Incluir logs estructurados con información clave:
   - Tiempo de procesamiento total
@@ -54,7 +55,7 @@ Una Lambda suscripta a un SNS Topic recibe eventos con la siguiente estructura:
 
 ### Arquitectura
 
-La solución implementa una arquitectura limpia usando la librería **ebased**:
+La solución implementa una arquitectura serverless usando **AWS SDK** directamente:
 
 ```
 SNS Topic → receiveMessage (Lambda) → SQS Queue → publishMessage (Lambda)
@@ -67,13 +68,13 @@ SNS Topic → receiveMessage (Lambda) → SQS Queue → publishMessage (Lambda)
 ```
 src/
 ├── receiveMessage/          # Lambda suscripta a SNS
-│   ├── handler/            # Manejo de eventos SNS
-│   ├── domain/             # Lógica de negocio
-│   └── service/            # Servicios de infraestructura
+│   ├── handler/            # Manejo de eventos SNS con AWS SDK
+│   ├── domain/             # Lógica de negocio y validaciones
+│   └── service/            # Servicios de infraestructura (SQS, DynamoDB)
 └── publishMessage/         # Lambda suscripta a SQS
-    ├── handler/            # Manejo de eventos SQS
-    ├── domain/             # Lógica de negocio
-    └── service/            # Servicios de infraestructura
+    ├── handler/            # Manejo de eventos SQS con AWS SDK
+    ├── domain/             # Lógica de negocio y validaciones
+    └── service/            # Servicios de infraestructura (DynamoDB)
 ```
 
 ### Flujos de Procesamiento
@@ -86,6 +87,15 @@ src/
 
 3. **link**: Flujo síncrono con llamada externa
    - Evento recibido → Simulación de llamada externa (2s) → Procesado → Guardado en DynamoDB
+
+### Características Técnicas
+
+- **AWS SDK v2**: Uso directo de `AWS.SQS`, `AWS.DynamoDB.DocumentClient`
+- **Validación manual**: Implementación de validaciones sin dependencias externas
+- **Logging estructurado**: Logs detallados con emojis para mejor trazabilidad
+- **Manejo de errores**: Try-catch robusto con mensajes descriptivos
+- **TTL en DynamoDB**: Configuración automática de TTL para limpieza de datos
+- **Batch processing**: Soporte para procesamiento de múltiples mensajes
 
 ---
 
@@ -149,13 +159,33 @@ npm run remove
 
 ---
 
+## 🔧 Diferencias con ebased
+
+### Ventajas de AWS SDK directo:
+- **Control total**: Acceso directo a todas las opciones de AWS
+- **Sin abstracciones**: Entendimiento completo del flujo de datos
+- **Flexibilidad**: Personalización completa de validaciones y lógica
+- **Debugging**: Logs más detallados y controlables
+- **Performance**: Sin overhead de librerías adicionales
+
+### Implementación:
+- **Handlers**: Manejo directo de eventos SNS/SQS
+- **Validaciones**: Implementación manual sin dependencias
+- **Servicios**: Uso directo de AWS SDK para SQS y DynamoDB
+- **Logging**: Sistema de logs personalizado con emojis
+
+---
+
 ## 🧪 Extras valorados (no obligatorios, pero suman puntos)
 
 - ✅ Tests unitarios y/o de integración
-- ✅ Validación de esquema de entrada (ebased InputValidation)
+- ✅ Validación de esquema de entrada (implementación manual)
 - ✅ Retry policies y DLQ para SQS
 - ✅ Separación clara de capas (handlers / domain / infra)
 - ✅ Uso de variables de entorno por stage/config
+- ✅ Logging estructurado y detallado
+- ✅ Manejo robusto de errores
+- ✅ TTL automático en DynamoDB
 
 ---
 
@@ -164,7 +194,8 @@ npm run remove
 - ✅ Solución subida a repositorio público
 - ✅ README.md con instrucciones claras de ejecución
 - ✅ Explicación de decisiones técnicas
-- ✅ Arquitectura limpia con ebased
+- ✅ Arquitectura serverless con AWS SDK
 - ✅ Implementación completa de todos los requisitos
+- ✅ Testing local funcional
 
 🚀 **QrCode Team – NX**

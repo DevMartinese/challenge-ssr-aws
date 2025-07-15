@@ -2,5 +2,6 @@
   "MESSAGE_QUEUE_URL": "${MESSAGE_QUEUE_URL}",
   "DYNAMODB_TABLE": "${DYNAMODB_TABLE}",
   "AWS_REGION": "us-east-1",
-  "STAGE": "develop"
+  "STAGE": "develop",
+  "LOG_LEVEL": "INFO"
 } 
